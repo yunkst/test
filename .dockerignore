@@ -1,0 +1,21 @@
+# 依赖与构建产物（体积大且平台相关，绝不进入构建上下文）
+node_modules
+.next
+out
+build
+coverage
+
+# 版本控制与本地环境
+.git
+.gitignore
+.env*
+
+# 日志与缓存
+*.log
+*.tsbuildinfo
+.Dockerfile.swp
+
+# Docker 自身文件（不影响镜像内容）
+Dockerfile
+docker-compose.yml
+.dockerignore

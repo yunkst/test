@@ -1,0 +1,18 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      # 源码实时挂载，dev server 热更新直接生效
+      - .:/app
+      # 命名卷隔离容器内的 node_modules（pnpm 符号链接结构与宿主机互不覆盖）
+      - web-node-modules:/app/node_modules
+      # 容器内构建缓存独立于宿主机 .next，避免两份产物互相污染
+      - web-next-cache:/app/.next
+
+volumes:
+  web-node-modules:
+  web-next-cache:
