@@ -1,0 +1,26 @@
+name: 'Setup toolchain'
+description: '安装 pnpm、Node 22、项目依赖并生成 Prisma Client（各 CI job 公共前置步骤）'
+
+runs:
+  using: composite
+  steps:
+    # 版本取自 package.json 的 packageManager 字段，无需手动指定
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: pnpm
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
+
+    # generate 只读 schema 不连库，prisma.config.ts 的 env() 求值要求变量存在
+    - name: Generate Prisma Client
+      shell: bash
+      env:
+        DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+      run: pnpm prisma generate

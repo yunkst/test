@@ -1,0 +1,48 @@
+# ============================================================
+# 生产镜像：多阶段构建，最终镜像仅含 standalone 产物
+# 开发环境请用 Dockerfile + docker-compose.yml
+# ============================================================
+
+# ---------- deps：安装全部依赖，仅依赖清单变更时失效 ----------
+FROM node:22-alpine AS deps
+WORKDIR /app
+RUN corepack enable
+COPY package.json pnpm-lock.yaml ./
+# node-linker=hoisted：容器内使用平铺布局（类 npm），规避 pnpm 符号链接
+# 虚拟存储与 Next standalone 依赖追踪的兼容问题（@swc/helpers 被物化得不完整）。
+# 仅影响镜像构建，宿主机开发环境仍用 pnpm 默认符号链接模式
+RUN pnpm install --frozen-lockfile --config.node-linker=hoisted
+
+# ---------- builder：生成 Prisma Client 并构建 standalone 产物 ----------
+FROM node:22-alpine AS builder
+WORKDIR /app
+RUN corepack enable
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ENV NEXT_TELEMETRY_DISABLED=1
+# generate 只读 schema 不连库，但 prisma.config.ts 的 env() 求值要求变量存在；
+# 真实连接串在运行时注入（DATABASE_URL）
+RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder" pnpm prisma generate
+RUN pnpm build
+
+# ---------- runner：最小运行时，非 root 用户 ----------
+FROM node:22-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 nextjs
+
+# standalone 产物：server.js + 依赖分析后的最小 node_modules
+# （Prisma client 代码与 @prisma/adapter-pg、pg 均被 Next 依赖追踪自动收入）
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]

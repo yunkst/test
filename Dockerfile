@@ -11,6 +11,14 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
+# Prisma 7 必需：在生成 client 之前把 schema 与 prisma.config.ts 拷贝进来
+# 运行时 bind mount 会覆盖它们，但生成结果落在 node_modules 命名卷里持久存在
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+# generate 只读 schema 不连库，但 prisma.config.ts 的 env() 求值要求变量存在；
+# 真实连接串在运行时由 compose environment 注入
+RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder" pnpm prisma generate
+
 EXPOSE 3000
 
 # 监听 0.0.0.0，否则容器外无法访问 dev server

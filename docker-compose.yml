@@ -12,7 +12,33 @@ services:
       - web-node-modules:/app/node_modules
       # 容器内构建缓存独立于宿主机 .next，避免两份产物互相污染
       - web-next-cache:/app/.next
+    # 等数据库 healthcheck 通过后再启动 web，避免 race condition
+    depends_on:
+      db:
+        condition: service_healthy
+    # 容器内 Next.js 进程直连 db 服务主机名（不走宿主机映射端口）
+    environment:
+      DATABASE_URL: postgresql://exam:exam_dev_password@db:5432/exam
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: exam
+      POSTGRES_PASSWORD: exam_dev_password
+      POSTGRES_DB: exam
+    # 暴露到宿主机，方便用 psql / GUI 工具或宿主机直接 prisma migrate
+    ports:
+      - "5432:5432"
+    volumes:
+      # 数据持久化：dev 环境重启容器不丢库
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exam -d exam"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   web-node-modules:
   web-next-cache:
+  postgres-data:
