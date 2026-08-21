@@ -62,6 +62,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # 创建 docker-container driver 的 builder：
+      # docker driver 不支持 GHA cache 的导出（cache-to: type=gha）
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       # latest 仅默认分支；sha 标签每次提交都打
       - name: Extract image metadata
         id: meta
