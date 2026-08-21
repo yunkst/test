@@ -1,0 +1,12 @@
+# 统一 LF 行尾：避免 Windows/WSL 编辑器引入 CRLF 污染 diff
+* text=auto eol=lf
+
+# 可执行文件保留执行权限（pnpm bin 等）
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.mts text eol=lf
+
+# 二进制文件标记
+*.png binary
+*.ico binary
+*.svg binary
