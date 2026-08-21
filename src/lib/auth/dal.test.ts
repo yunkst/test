@@ -15,6 +15,10 @@ const { sessionFindUniqueMock, userFindUniqueMock } = vi.hoisted(() => ({
   sessionFindUniqueMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
 }))
+const { referralFindManyMock, pointsFindManyMock } = vi.hoisted(() => ({
+  referralFindManyMock: vi.fn(),
+  pointsFindManyMock: vi.fn(),
+}))
 
 vi.mock('next/headers', () => ({
   cookies: vi.fn(async () => ({ get: getMock })),
@@ -24,11 +28,13 @@ vi.mock('@/lib/db', () => ({
   prisma: {
     session: { findUnique: sessionFindUniqueMock },
     user: { findUnique: userFindUniqueMock },
+    referral: { findMany: referralFindManyMock },
+    pointsTransaction: { findMany: pointsFindManyMock },
   },
 }))
 
 // 注意：不 mock './session'——经真实 hashToken 才能验证 token → hash 查询路径
-import { getCurrentUser, requireUser, verifySession } from './dal'
+import { getCurrentUser, requireUser, verifySession, getDashboardData } from './dal'
 
 describe('verifySession', () => {
   beforeEach(() => {
@@ -104,5 +110,71 @@ describe('getCurrentUser / requireUser', () => {
     getMock.mockReturnValue(undefined)
     await requireUser()
     expect(redirectMock).toHaveBeenCalledWith('/login')
+  })
+})
+
+describe('getDashboardData', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    getMock.mockReturnValue({ value: 'token' })
+    sessionFindUniqueMock.mockResolvedValue({
+      userId: 5,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+    userFindUniqueMock.mockResolvedValue({
+      id: 5,
+      name: 'Alice',
+      email: 'alice@x.com',
+      referralCode: 'CODE',
+      points: 100,
+    })
+    referralFindManyMock.mockResolvedValue([
+      {
+        id: 1,
+        createdAt: new Date('2026-08-01T00:00:00Z'),
+        referee: { name: 'Bob', email: 'bob@x.com' },
+      },
+    ])
+    pointsFindManyMock.mockResolvedValue([
+      { id: 11, amount: 100, reason: 'referral_bonus', createdAt: new Date() },
+    ])
+  })
+
+  it('并行查询邀请记录与积分流水，映射为面板所需形状', async () => {
+    const data = await getDashboardData()
+
+    expect(data.user).toMatchObject({ id: 5, name: 'Alice', points: 100 })
+    // 嵌套 referee 展平为 refereeName/refereeEmail
+    expect(data.referrals).toEqual([
+      {
+        id: 1,
+        refereeName: 'Bob',
+        refereeEmail: 'bob@x.com',
+        createdAt: new Date('2026-08-01T00:00:00Z'),
+      },
+    ])
+    expect(data.transactions[0].amount).toBe(100)
+    expect(data.transactions[0].reason).toBe('referral_bonus')
+
+    // 查询参数：仅当前用户的邀请；流水限量 20 条、按时间倒序
+    expect(referralFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { referrerId: 5 } }),
+    )
+    expect(pointsFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 5 },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+    )
+  })
+
+  it('无邀请记录/无流水：返回空数组，不崩溃', async () => {
+    referralFindManyMock.mockResolvedValue([])
+    pointsFindManyMock.mockResolvedValue([])
+
+    const data = await getDashboardData()
+    expect(data.referrals).toEqual([])
+    expect(data.transactions).toEqual([])
   })
 })

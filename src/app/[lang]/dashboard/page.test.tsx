@@ -9,6 +9,11 @@ vi.mock('@/lib/auth/actions', () => ({ logout: vi.fn() }))
 
 import DashboardPage from './page'
 
+const props = (lang: string) => ({
+  params: Promise.resolve({ lang }),
+  searchParams: Promise.resolve({}),
+})
+
 const baseUser = {
   id: 1,
   name: 'Alice',
@@ -25,7 +30,7 @@ describe('Dashboard page', () => {
       transactions: [],
     })
 
-    render(await DashboardPage())
+    render(await DashboardPage(props('zh')))
 
     expect(screen.getByRole('heading', { name: '你好，Alice' })).toBeInTheDocument()
     expect(screen.getByLabelText('积分余额')).toBeInTheDocument()
@@ -56,7 +61,7 @@ describe('Dashboard page', () => {
       ],
     })
 
-    render(await DashboardPage())
+    render(await DashboardPage(props('zh')))
 
     expect(screen.getByText('100')).toBeInTheDocument()
     expect(screen.getByText('Bob')).toBeInTheDocument()
@@ -65,5 +70,19 @@ describe('Dashboard page', () => {
     expect(screen.getByText('邀约奖励')).toBeInTheDocument()
     // 邀请链接卡片展示 /ref/ 短链
     expect(screen.getByText(/\/ref\/ABC123/)).toBeInTheDocument()
+  })
+
+  it('英文语言：渲染英文面板文案与奖励标签', async () => {
+    getDashboardDataMock.mockResolvedValue({
+      user: { ...baseUser, points: 100 },
+      referrals: [{ id: 1, refereeName: 'Bob', refereeEmail: 'bob@x.com', createdAt: new Date() }],
+      transactions: [{ id: 1, amount: 100, reason: 'referral_bonus', createdAt: new Date() }],
+    })
+
+    render(await DashboardPage(props('en')))
+
+    expect(screen.getByRole('heading', { name: 'Hello, Alice' })).toBeInTheDocument()
+    expect(screen.getByText('+100 points')).toBeInTheDocument()
+    expect(screen.getByText('Referral bonus')).toBeInTheDocument()
   })
 })

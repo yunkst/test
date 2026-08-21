@@ -5,7 +5,7 @@ import { REFERRAL_BONUS_POINTS, REASON_REFERRAL_BONUS } from './constants'
 
 export type RegisterResult =
   | { ok: true; userId: number }
-  | { ok: false; code: 'INVALID_REFERRAL_CODE' | 'SELF_REFERRAL'; message: string }
+  | { ok: false; code: 'INVALID_REFERRAL_CODE' | 'SELF_REFERRAL' }
 
 // 生成 10 字符 base64url 邀请码
 export function generateReferralCode(): string {
@@ -50,11 +50,11 @@ export async function registerUser(input: {
         select: { id: true },
       })
       if (!referrer) {
-        return { ok: false, code: 'INVALID_REFERRAL_CODE', message: '邀请码无效' }
+        return { ok: false, code: 'INVALID_REFERRAL_CODE' }
       }
       // 自邀校验：已登录用户不能用（自己的或任何人的）链接再注册
       if (currentUserId !== null && referrer.id === currentUserId) {
-        return { ok: false, code: 'SELF_REFERRAL', message: '不能邀请自己' }
+        return { ok: false, code: 'SELF_REFERRAL' }
       }
 
       const user = await createUserWithUniqueCode(tx, { name, email })

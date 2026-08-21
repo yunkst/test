@@ -1,6 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { en } from '@/lib/i18n/en'
+import { zh } from '@/lib/i18n/zh'
 
 const { loginOrRegisterMock } = vi.hoisted(() => ({ loginOrRegisterMock: vi.fn() }))
 
@@ -15,6 +17,10 @@ vi.mock('server-only', () => ({}))
 
 import { LoginForm } from './login-form'
 
+const dictionaries = { zh, en } as const
+const renderForm = (lang: 'zh' | 'en' = 'zh') =>
+  render(<LoginForm lang={lang} dict={dictionaries[lang]} />)
+
 describe('LoginForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -22,7 +28,7 @@ describe('LoginForm', () => {
   })
 
   it('渲染用户名 / 邮箱输入框与提交按钮', () => {
-    render(<LoginForm />)
+    renderForm()
     expect(screen.getByLabelText('用户名')).toBeInTheDocument()
     expect(screen.getByLabelText('邮箱')).toBeInTheDocument()
     expect(
@@ -30,9 +36,9 @@ describe('LoginForm', () => {
     ).toBeInTheDocument()
   })
 
-  it('提交：action 收到包含输入值的 FormData', async () => {
+  it('提交：action 收到包含输入值（含 locale 字段）的 FormData', async () => {
     const user = userEvent.setup()
-    render(<LoginForm />)
+    renderForm()
 
     await user.type(screen.getByLabelText('用户名'), 'Alice')
     await user.type(screen.getByLabelText('邮箱'), 'alice@x.com')
@@ -45,12 +51,30 @@ describe('LoginForm', () => {
     expect(formData).toBeInstanceOf(FormData)
     expect(formData.get('name')).toBe('Alice')
     expect(formData.get('email')).toBe('alice@x.com')
+    expect(formData.get('locale')).toBe('zh')
+  })
+
+  it('英文表单：渲染英文标签与按钮，locale 字段为 en', async () => {
+    const user = userEvent.setup()
+    renderForm('en')
+
+    expect(screen.getByLabelText('Username')).toBeInTheDocument()
+    expect(screen.getByLabelText('Email')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Username'), 'Alice')
+    await user.type(screen.getByLabelText('Email'), 'alice@x.com')
+    await user.click(screen.getByRole('button', { name: 'Log in / Sign up' }))
+
+    await waitFor(() => {
+      expect(loginOrRegisterMock).toHaveBeenCalledTimes(1)
+    })
+    expect(loginOrRegisterMock.mock.calls[0][1].get('locale')).toBe('en')
   })
 
   it('业务错误（message）：以 alert 展示', async () => {
     loginOrRegisterMock.mockResolvedValue({ message: '邀请码无效' })
     const user = userEvent.setup()
-    render(<LoginForm />)
+    renderForm()
 
     await user.type(screen.getByLabelText('用户名'), 'Bob')
     await user.type(screen.getByLabelText('邮箱'), 'bob@x.com')
@@ -64,7 +88,7 @@ describe('LoginForm', () => {
       errors: { name: ['请输入用户名'] },
     })
     const user = userEvent.setup()
-    render(<LoginForm />)
+    renderForm()
 
     await user.type(screen.getByLabelText('邮箱'), 'bob@x.com')
     await user.click(screen.getByRole('button', { name: '登录 / 注册' }))

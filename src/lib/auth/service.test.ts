@@ -100,11 +100,7 @@ describe('registerUser（注册 + 发奖事务）', () => {
       currentUserId: null,
     })
 
-    expect(result).toEqual({
-      ok: false,
-      code: 'INVALID_REFERRAL_CODE',
-      message: '邀请码无效',
-    })
+    expect(result).toEqual({ ok: false, code: 'INVALID_REFERRAL_CODE' })
     expect(create).not.toHaveBeenCalled()
     expect(pointsCreate).not.toHaveBeenCalled()
   })
@@ -119,11 +115,7 @@ describe('registerUser（注册 + 发奖事务）', () => {
       currentUserId: 9,
     })
 
-    expect(result).toEqual({
-      ok: false,
-      code: 'SELF_REFERRAL',
-      message: '不能邀请自己',
-    })
+    expect(result).toEqual({ ok: false, code: 'SELF_REFERRAL' })
     expect(create).not.toHaveBeenCalled()
     expect(pointsCreate).not.toHaveBeenCalled()
   })

@@ -3,8 +3,10 @@
 import { useActionState } from 'react'
 import { loginOrRegister } from '@/lib/auth/actions'
 import type { AuthFormState } from '@/lib/auth/definitions'
+import type { Dictionary } from '@/lib/i18n/zh'
+import type { Locale } from '@/lib/i18n/locale'
 
-export function LoginForm() {
+export function LoginForm({ lang, dict }: { lang: Locale; dict: Dictionary }) {
   const [state, formAction, pending] = useActionState<AuthFormState, FormData>(
     loginOrRegister,
     undefined,
@@ -12,9 +14,12 @@ export function LoginForm() {
 
   return (
     <form action={formAction} className="flex flex-col gap-4" noValidate>
+      {/* locale 随表单提交，服务端 Action 据此选择错误消息语言 */}
+      <input type="hidden" name="locale" value={lang} />
+
       <div className="flex flex-col gap-1.5">
         <label htmlFor="name" className="text-sm font-medium">
-          用户名
+          {dict.login.nameLabel}
         </label>
         <input
           id="name"
@@ -32,7 +37,7 @@ export function LoginForm() {
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="email" className="text-sm font-medium">
-          邮箱
+          {dict.login.emailLabel}
         </label>
         <input
           id="email"
@@ -58,10 +63,10 @@ export function LoginForm() {
         disabled={pending}
         className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
       >
-        {pending ? '处理中…' : '登录 / 注册'}
+        {pending ? dict.login.pending : dict.login.submit}
       </button>
 
-      <p className="text-xs text-zinc-500">无需密码，邮箱未注册时将自动创建账号。</p>
+      <p className="text-xs text-zinc-500">{dict.login.helper}</p>
     </form>
   )
 }

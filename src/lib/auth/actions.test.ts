@@ -35,12 +35,13 @@ vi.mock('./service', () => ({ registerUser: registerUserMock }))
 vi.mock('./dal', () => ({ verifySession: verifySessionMock }))
 
 import { Prisma } from '@/generated/prisma/client'
-import { loginOrRegister } from './actions'
+import { loginOrRegister, logout } from './actions'
 
-function makeForm(name: string, email: string): FormData {
+function makeForm(name: string, email: string, locale = 'zh'): FormData {
   const form = new FormData()
   form.set('name', name)
   form.set('email', email)
+  form.set('locale', locale)
   return form
 }
 
@@ -112,17 +113,29 @@ describe('loginOrRegister', () => {
     expect(redirectMock).toHaveBeenCalledWith('/dashboard')
   })
 
-  it('注册被拒（如邀请码无效）：返回 message，不建 session', async () => {
+  it('注册被拒（如邀请码无效）：返回本地化 message，不建 session', async () => {
     registerUserMock.mockResolvedValue({
       ok: false,
       code: 'INVALID_REFERRAL_CODE',
-      message: '邀请码无效',
     })
 
     const state = await loginOrRegister(undefined, makeForm('Bob', 'bob@x.com'))
     expect(state).toEqual({ message: '邀请码无效' })
     expect(createSessionMock).not.toHaveBeenCalled()
     expect(redirectMock).not.toHaveBeenCalled()
+  })
+
+  it('英文表单 + 无效邀请码：返回英文 message', async () => {
+    registerUserMock.mockResolvedValue({
+      ok: false,
+      code: 'INVALID_REFERRAL_CODE',
+    })
+
+    const state = await loginOrRegister(
+      undefined,
+      makeForm('Bob', 'bob@x.com', 'en'),
+    )
+    expect(state).toEqual({ message: 'Invalid referral code' })
   })
 
   it('并发注册同邮箱（P2002）：返回兜底 message', async () => {
@@ -135,5 +148,22 @@ describe('loginOrRegister', () => {
 
     const state = await loginOrRegister(undefined, makeForm('Bob', 'bob@x.com'))
     expect(state).toEqual({ message: '该邮箱刚被注册，请用对应用户名登录' })
+  })
+
+  it('注册遇到非 P2002 错误：透传给上层，不吞异常', async () => {
+    registerUserMock.mockRejectedValue(new Error('db down'))
+
+    await expect(
+      loginOrRegister(undefined, makeForm('Bob', 'bob@x.com')),
+    ).rejects.toThrow('db down')
+    expect(createSessionMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('logout', () => {
+  it('删除会话并跳转登录页', async () => {
+    await expect(logout()).rejects.toThrow('NEXT_REDIRECT')
+    expect(deleteSessionMock).toHaveBeenCalledTimes(1)
+    expect(redirectMock).toHaveBeenCalledWith('/login')
   })
 })

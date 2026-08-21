@@ -1,8 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { zh } from '@/lib/i18n/zh'
 import { ReferralLinkCard } from './referral-link-card'
 
 const writeTextMock = vi.fn().mockResolvedValue(undefined)
+
+const renderCard = (props: Partial<React.ComponentProps<typeof ReferralLinkCard>> = {}) =>
+  render(<ReferralLinkCard dict={zh} referralCode="ABC123" {...props} />)
 
 describe('ReferralLinkCard', () => {
   beforeEach(() => {
@@ -19,7 +23,7 @@ describe('ReferralLinkCard', () => {
   })
 
   it('挂载后展示完整邀请短链', async () => {
-    render(<ReferralLinkCard referralCode="ABC123" />)
+    renderCard()
     // origin 由 useEffect 补全（jsdom 默认 http://localhost:3000），等待异步渲染
     expect(
       await screen.findByText('http://localhost:3000/ref/ABC123'),
@@ -27,7 +31,7 @@ describe('ReferralLinkCard', () => {
   })
 
   it('点击复制：写入剪贴板并切换为已复制', async () => {
-    render(<ReferralLinkCard referralCode="ABC123" />)
+    renderCard()
 
     // 用 fireEvent（同步派发）而非 userEvent：userEvent 的异步链会触发
     // vi.stubGlobal 的还原，导致组件读到 jsdom 原生 clipboard

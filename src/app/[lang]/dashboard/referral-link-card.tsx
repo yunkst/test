@@ -1,10 +1,17 @@
 'use client'
 
 import { useSyncExternalStore, useState } from 'react'
+import type { Dictionary } from '@/lib/i18n/zh'
 
 const emptySubscribe = () => () => {}
 
-export function ReferralLinkCard({ referralCode }: { referralCode: string }) {
+export function ReferralLinkCard({
+  dict,
+  referralCode,
+}: {
+  dict: Dictionary
+  referralCode: string
+}) {
   const [copied, setCopied] = useState(false)
 
   // origin 仅客户端可知：SSR/hydration 期间返回 ''（相对路径），
@@ -34,11 +41,11 @@ export function ReferralLinkCard({ referralCode }: { referralCode: string }) {
           onClick={handleCopy}
           className="rounded bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:opacity-90"
         >
-          {copied ? '已复制' : '复制链接'}
+          {copied ? dict.referralCard.copied : dict.referralCard.copy}
         </button>
       </div>
       <p className="mt-3 text-xs text-zinc-500">
-        好友通过此链接注册账号，你将获得积分奖励。
+        {dict.referralCard.helper}
       </p>
     </div>
   )

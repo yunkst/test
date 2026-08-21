@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { AuthFormSchema } from './definitions'
+import { zh } from '@/lib/i18n/zh'
+import { createAuthFormSchema } from './definitions'
 
 describe('AuthFormSchema', () => {
+  const AuthFormSchema = createAuthFormSchema(zh)
   it('合法输入通过，且 email/name 被归一化', () => {
     const result = AuthFormSchema.safeParse({
       name: '  Alice  ',
