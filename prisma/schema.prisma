@@ -1,0 +1,60 @@
+// Prisma 7 新格式：datasource url 不在此处，由 prisma.config.ts 统一管理
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  name         String
+  referralCode String   @unique
+  points       Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions           Session[]
+  referralsGiven     Referral[]         @relation("Referrer")
+  referralsReceived  Referral[]         @relation("Referee")
+  pointsTransactions PointsTransaction[]
+}
+
+model Session {
+  tokenHash String   @id
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Referral {
+  id         Int      @id @default(autoincrement())
+  referrerId Int
+  refereeId  Int      @unique
+  createdAt  DateTime @default(now())
+
+  referrer           User                @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referee            User                @relation("Referee", fields: [refereeId], references: [id], onDelete: Cascade)
+  pointsTransactions PointsTransaction[]
+
+  @@index([referrerId, createdAt])
+}
+
+model PointsTransaction {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  amount     Int
+  reason     String
+  referralId Int?     @unique
+  createdAt  DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referral Referral? @relation(fields: [referralId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
