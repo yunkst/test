@@ -15,15 +15,19 @@ export function hashToken(token: string): string {
 }
 
 // 创建会话：写 Session 表 + 设置 httpOnly cookie。
+// 单会话模型：登录即吊销该用户全部旧会话（含被盗 cookie），
+// 并顺带回收全局过期会话，防止表随登录次数单调膨胀。
 // cookie 只能在 Server Action 或 Route Handler 中设置。
 export async function createSession(userId: number): Promise<void> {
   const token = generateSessionToken()
   const tokenHash = hashToken(token)
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS)
 
-  await prisma.session.create({
-    data: { tokenHash, userId, expiresAt },
-  })
+  await prisma.$transaction([
+    prisma.session.deleteMany({ where: { expiresAt: { lte: new Date() } } }),
+    prisma.session.deleteMany({ where: { userId } }),
+    prisma.session.create({ data: { tokenHash, userId, expiresAt } }),
+  ])
 
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE_NAME, token, {

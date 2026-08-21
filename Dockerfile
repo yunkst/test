@@ -11,15 +11,13 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
-# Prisma 7 必需：在生成 client 之前把 schema 与 prisma.config.ts 拷贝进来
-# 运行时 bind mount 会覆盖它们，但生成结果落在 node_modules 命名卷里持久存在
-COPY prisma ./prisma
-COPY prisma.config.ts ./
-# generate 只读 schema 不连库，但 prisma.config.ts 的 env() 求值要求变量存在；
-# 真实连接串在运行时由 compose environment 注入
-RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder" pnpm prisma generate
-
 EXPOSE 3000
 
-# 监听 0.0.0.0，否则容器外无法访问 dev server
-CMD ["pnpm", "dev:docker"]
+# 启动前置（dev 容器每次启动必做，幂等）：
+# 1) migrate deploy 应用迁移 —— compose 挂载了 prisma/migrations，
+#    全新 postgres-data 卷下也能一键起（fix：空库 P2021）
+# 2) generate 重新生成 client —— compose 的 .:/app bind mount 遮蔽了镜像层生成物，
+#    生成结果写入挂载后的源码树 src/generated（.gitignore 已排除，不污染 git）
+# 3) 监听 0.0.0.0，否则容器外无法访问 dev server
+# 注：prisma.config.ts 的 env('DATABASE_URL') 在 generate 时求值，由 compose environment 注入
+CMD ["sh", "-c", "pnpm prisma migrate deploy && pnpm prisma generate && pnpm dev:docker"]
