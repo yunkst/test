@@ -12,6 +12,9 @@ services:
       - web-node-modules:/app/node_modules
       # 容器内构建缓存独立于宿主机 .next，避免两份产物互相污染
       - web-next-cache:/app/.next
+      # Prisma 生成物隔离挂到命名卷：容器内 generate 写卷，不污染宿主机源码树
+      # （避免容器 root 通过 bind mount 在宿主机留下 root 所有、用户删不掉的 src/generated）
+      - web-generated:/app/src/generated
     # 等数据库 healthcheck 通过后再启动 web，避免 race condition
     depends_on:
       db:
@@ -41,4 +44,5 @@ services:
 volumes:
   web-node-modules:
   web-next-cache:
+  web-generated:
   postgres-data:

@@ -16,8 +16,9 @@ EXPOSE 3000
 # 启动前置（dev 容器每次启动必做，幂等）：
 # 1) migrate deploy 应用迁移 —— compose 挂载了 prisma/migrations，
 #    全新 postgres-data 卷下也能一键起（fix：空库 P2021）
-# 2) generate 重新生成 client —— compose 的 .:/app bind mount 遮蔽了镜像层生成物，
-#    生成结果写入挂载后的源码树 src/generated（.gitignore 已排除，不污染 git）
+# 2) generate 重新生成 client —— compose 把 /app/src/generated 隔离挂到命名卷 web-generated，
+#    每次启动重生成保证 fresh clone 也能解析到 @/generated/prisma/client；
+#    不写宿主机源码树（避免容器 root 在宿主机留下删不掉的生成物）
 # 3) 监听 0.0.0.0，否则容器外无法访问 dev server
 # 注：prisma.config.ts 的 env('DATABASE_URL') 在 generate 时求值，由 compose environment 注入
 CMD ["sh", "-c", "pnpm prisma migrate deploy && pnpm prisma generate && pnpm dev:docker"]

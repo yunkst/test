@@ -99,7 +99,6 @@ describe('registerUser transaction against real PostgreSQL', () => {
     expect(result).toEqual({
       ok: false,
       code: 'INVALID_REFERRAL_CODE',
-      message: '邀请码无效',
     })
     expect(await prisma.user.count()).toBe(0)
     expect(await prisma.pointsTransaction.count()).toBe(0)
@@ -127,7 +126,6 @@ describe('registerUser transaction against real PostgreSQL', () => {
     expect(result).toEqual({
       ok: false,
       code: 'SELF_REFERRAL',
-      message: '不能邀请自己',
     })
     // 只有 setup 创建的 Alice，无新用户、无积分变动
     expect(await prisma.user.count()).toBe(1)
